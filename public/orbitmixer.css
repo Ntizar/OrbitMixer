@@ -1,0 +1,225 @@
+/* =====================================================================
+   OrbitMixer — layout, split view, webcam mirror, thumbs-up bar.
+   Builds on aurora.css. Do not duplicate tokens here.
+   ===================================================================== */
+
+.app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: auto 1fr;
+  gap: 18px;
+  padding: 18px;
+  max-width: 1600px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+/* ----- navbar ----- */
+.navbar {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 18px;
+  border-radius: var(--r-full);
+}
+.navbar .brand {
+  display: flex; align-items: center; gap: 10px;
+  font: 700 16px/1 var(--font-ui); letter-spacing: 0.02em;
+}
+.navbar .brand-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--aurora-blue), var(--aurora-orange));
+  box-shadow: 0 0 16px rgba(59,130,246,0.6);
+}
+.navbar .spacer { flex: 1; }
+
+/* ----- map card ----- */
+.map-card {
+  position: relative;
+  grid-column: 1; grid-row: 2;
+  min-height: 560px;
+  padding: 0;
+  overflow: hidden;
+}
+#map { position: absolute; inset: 0; border-radius: inherit; }
+
+.map-overlay {
+  position: absolute;
+  pointer-events: none; /* children re-enable */
+  z-index: 5;
+}
+.map-overlay > * { pointer-events: auto; }
+
+.overlay-tl { top: 14px; left: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+.overlay-tr { top: 14px; right: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+.overlay-bl { bottom: 14px; left: 14px; }
+.overlay-br { bottom: 14px; right: 14px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+
+.date-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: var(--r-full);
+}
+.date-pill label {
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--aurora-fg-muted);
+}
+.date-pill input[type="date"] {
+  padding: 4px 6px; font-size: 12px;
+  background: rgba(0,0,0,0.45);
+}
+
+.hud-chip {
+  font: 600 11px/1 var(--font-mono);
+  padding: 6px 10px; border-radius: var(--r-full);
+  background: rgba(0,0,0,0.55);
+  border: 1px solid var(--aurora-line);
+  color: var(--aurora-fg);
+}
+
+/* virtual cursor */
+#virtual-cursor {
+  position: fixed;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  pointer-events: none;
+  border: 2px solid var(--aurora-blue-2);
+  background: rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 24px rgba(59,130,246,0.6);
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  display: none;
+  transition: width var(--dur-1), height var(--dur-1), border-color var(--dur-1);
+}
+#virtual-cursor.active { display: block; }
+#virtual-cursor.locked { border-color: var(--aurora-orange); background: rgba(249,115,22,0.2); width: 36px; height: 36px; }
+
+/* ----- side column ----- */
+.side {
+  grid-column: 2; grid-row: 2;
+  display: flex; flex-direction: column; gap: 14px;
+  min-width: 0;
+}
+
+/* ----- webcam card ----- */
+.webcam-card { padding: 12px; }
+.webcam-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: #000;
+}
+.webcam-stage video,
+.webcam-stage canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  transform: scaleX(-1); /* mirror */
+}
+.webcam-off-msg {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--aurora-fg-muted); font-size: 12px; text-align: center; padding: 8px;
+}
+
+.thumbs-progress {
+  margin-top: 10px;
+  height: 6px; width: 100%;
+  background: rgba(255,255,255,0.06);
+  border-radius: var(--r-full);
+  overflow: hidden;
+}
+.thumbs-progress > span {
+  display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--aurora-blue), var(--aurora-orange));
+  transition: width 80ms linear;
+}
+
+/* ----- analysis card ----- */
+.analysis-card .seg-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ----- split-view card ----- */
+.split-card { padding: 14px; }
+.split-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1/1;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: #000;
+  user-select: none;
+}
+.split-stage img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.split-stage .img-after {
+  clip-path: inset(0 calc(100% - var(--split-position, 50%)) 0 0);
+}
+.split-stage .divider {
+  position: absolute; top: 0; bottom: 0;
+  left: var(--split-position, 50%);
+  width: 2px; background: white;
+  box-shadow: 0 0 12px rgba(255,255,255,0.7);
+  cursor: ew-resize;
+  transform: translateX(-1px);
+}
+.split-stage .divider::after {
+  content: '⇆';
+  position: absolute; top: 50%; left: 50%;
+  width: 32px; height: 32px;
+  margin: -16px 0 0 -16px;
+  border-radius: 50%;
+  background: white; color: #111;
+  display: flex; align-items: center; justify-content: center;
+  font: 700 14px/1 var(--font-mono);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+}
+.split-label {
+  position: absolute; top: 8px;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  font: 700 11px/1 var(--font-mono);
+  background: rgba(0,0,0,0.55);
+  border: 1px solid var(--aurora-line);
+}
+.split-label.left  { left: 8px;  color: var(--aurora-blue-2); }
+.split-label.right { right: 8px; color: var(--aurora-orange-2); }
+
+.split-controls {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 10px;
+}
+.split-controls .small { min-width: 36px; text-align: right; }
+
+/* ----- AI / territory cards ----- */
+.ai-text {
+  font: 500 14px/1.55 var(--font-ui);
+  white-space: pre-line;
+  color: var(--aurora-fg);
+}
+.ai-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+.kv { display: grid; grid-template-columns: 80px 1fr; gap: 6px 12px; font-size: 13px; }
+.kv dt { color: var(--aurora-fg-muted); font-weight: 600; }
+.kv dd { margin: 0; font-family: var(--font-mono); }
+
+/* spinner */
+.spinner {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: white;
+  animation: spin 800ms linear infinite;
+  display: inline-block; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ----- responsive ----- */
+@media (max-width: 1100px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .map-card { grid-column: 1; grid-row: 2; min-height: 460px; }
+  .side { grid-column: 1; grid-row: 3; }
+}

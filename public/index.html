@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>OrbitMixer · comparador temporal de la Tierra</title>
+  <meta name="description" content="Compara cualquier lugar de la Tierra entre dos fechas con gestos de la mano e inteligencia artificial." />
+
+  <link rel="preconnect" href="https://api.mapbox.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
+  <link rel="stylesheet" href="/aurora.css">
+  <link rel="stylesheet" href="/orbitmixer.css">
+</head>
+<body>
+
+  <!-- Single inline SVG filter for Aurora "specular" refraction -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="ntizar-glass-filter">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="3"/>
+      <feDisplacementMap in="SourceGraphic" scale="6"/>
+    </filter>
+  </svg>
+
+  <div id="virtual-cursor" aria-hidden="true"></div>
+
+  <main class="app">
+
+    <!-- ============== NAVBAR ============== -->
+    <nav class="navbar glass-intense glass-specular" aria-label="Barra principal">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span class="text-gradient">OrbitMixer</span>
+      </div>
+      <span class="badge badge-info" id="status-pill">PUBLIC DEMO</span>
+      <div class="spacer"></div>
+      <div class="segmented-control" role="tablist" aria-label="Idioma">
+        <button id="lang-es" aria-pressed="true">ES</button>
+        <button id="lang-en" aria-pressed="false">EN</button>
+      </div>
+    </nav>
+
+    <!-- ============== MAP CARD ============== -->
+    <section class="map-card glass-standard glass-specular" aria-label="Mapa global">
+      <div id="map" role="application" aria-label="Globo terrestre"></div>
+
+      <div class="map-overlay overlay-tl">
+        <div class="segmented-control" role="tablist" aria-label="Fuente de imágenes" data-i18n-aria-label="imagery-source">
+          <button data-imagery="mapbox"  aria-pressed="true"  data-i18n="src-mapbox">Mapbox Demo</button>
+          <button data-imagery="sentinel" aria-pressed="false" data-i18n="src-sentinel">Sentinel Free</button>
+        </div>
+        <button id="webcam-toggle" class="btn btn-glass" data-i18n="webcam-on">Activar webcam</button>
+      </div>
+
+      <div class="map-overlay overlay-tr">
+        <div class="segmented-control" role="tablist" aria-label="Modo de control con la mano">
+          <button data-handmode="map"     aria-pressed="true"  data-i18n="hm-map">Mapa</button>
+          <button data-handmode="compare" aria-pressed="false" data-i18n="hm-compare">Comparador</button>
+          <button data-handmode="manual"  aria-pressed="false" data-i18n="hm-manual">Manual</button>
+        </div>
+      </div>
+
+      <div class="map-overlay overlay-bl">
+        <div class="date-pill glass-intense glass-specular" role="group" aria-label="Ventana temporal">
+          <label for="date-from" data-i18n="date-before">Antes</label>
+          <input type="date" id="date-from">
+          <label for="date-to" data-i18n="date-now">Ahora</label>
+          <input type="date" id="date-to">
+        </div>
+      </div>
+
+      <div class="map-overlay overlay-br">
+        <span class="hud-chip mono" id="hud-coords">--, --</span>
+        <span class="hud-chip mono" id="hud-lock" data-i18n="hud-unlocked">SIN BLOQUEO</span>
+        <span class="hud-chip mono" id="hud-cooldown">⏱ 0.0s</span>
+      </div>
+    </section>
+
+    <!-- ============== SIDE COLUMN ============== -->
+    <aside class="side">
+
+      <!-- WEBCAM -->
+      <section class="card-glass glass-specular webcam-card" aria-label="Cámara web">
+        <h3 data-i18n="cam-title">Webcam · gestos</h3>
+        <div class="webcam-stage">
+          <video id="webcam-video" autoplay playsinline muted></video>
+          <canvas id="webcam-canvas" width="320" height="180"></canvas>
+          <div id="webcam-off-msg" class="webcam-off-msg" data-i18n="cam-off">
+            Cámara desactivada. Pulsa <b>Activar webcam</b> en el mapa.
+          </div>
+        </div>
+        <div class="thumbs-progress" aria-label="Progreso pulgar arriba"><span id="thumbs-bar"></span></div>
+        <div class="small" id="gesture-status" style="margin-top:8px;">—</div>
+      </section>
+
+      <!-- ANALYSIS MODE -->
+      <section class="card-glass glass-specular analysis-card" aria-label="Modo de análisis">
+        <h3 data-i18n="mode-title">Modo de análisis</h3>
+        <div class="seg-row">
+          <div class="segmented-control" role="tablist">
+            <button data-mode="vegetation" aria-pressed="false" data-i18n="m-veg">Vegetación</button>
+            <button data-mode="fire"       aria-pressed="false" data-i18n="m-fire">Incendio</button>
+            <button data-mode="water"      aria-pressed="false" data-i18n="m-water">Agua</button>
+            <button data-mode="urban"      aria-pressed="false" data-i18n="m-urban">Urbano</button>
+            <button data-mode="natural"    aria-pressed="true"  data-i18n="m-natural">Color natural</button>
+          </div>
+          <div class="segmented-control" role="tablist" aria-label="Capa">
+            <button data-layer="TRUE_COLOR" aria-pressed="true"  data-i18n="l-rgb">RGB</button>
+            <button data-layer="DEM"        aria-pressed="false" data-i18n="l-dem">Elevación</button>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <button id="manual-capture" class="btn btn-primary" data-i18n="capture">Capturar y comparar</button>
+        </div>
+      </section>
+
+      <!-- SPLIT VIEW -->
+      <section class="card-glass glass-specular split-card" aria-label="Comparación antes / ahora">
+        <h3 data-i18n="split-title">Antes ↔ Ahora</h3>
+        <div class="split-stage" id="split-stage">
+          <img id="img-before" class="img-before" alt="" />
+          <img id="img-after"  class="img-after"  alt="" />
+          <div class="split-label left"  data-i18n="split-before">ANTES</div>
+          <div class="split-label right" data-i18n="split-after">AHORA</div>
+          <div class="divider" id="split-divider" role="separator" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"></div>
+        </div>
+        <div class="split-controls">
+          <input type="range" id="split-range" min="0" max="100" value="50" aria-label="Posición del divisor">
+          <span class="small mono" id="split-value">50%</span>
+        </div>
+      </section>
+
+      <!-- AI ANALYSIS -->
+      <section class="card-glass glass-specular" aria-label="Análisis con IA">
+        <h3 data-i18n="ai-title">Análisis IA</h3>
+        <div class="ai-text" id="ai-text" data-i18n="ai-empty">
+          Selecciona un punto en el mapa o sostén el pulgar arriba 5 s para comparar.
+        </div>
+        <div class="ai-meta" id="ai-meta"></div>
+      </section>
+
+      <!-- TERRITORY -->
+      <section class="card-glass glass-specular" aria-label="Territorio">
+        <h3 data-i18n="ter-title">Territorio</h3>
+        <dl class="kv">
+          <dt data-i18n="ter-place">Lugar</dt>     <dd id="ter-place">—</dd>
+          <dt data-i18n="ter-region">Región</dt>   <dd id="ter-region">—</dd>
+          <dt data-i18n="ter-country">País</dt>    <dd id="ter-country">—</dd>
+          <dt data-i18n="ter-label">Etiqueta</dt>  <dd id="ter-label" class="small">—</dd>
+        </dl>
+      </section>
+
+    </aside>
+  </main>
+
+  <!-- ============== SCRIPTS (CDN) ============== -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <script src="/i18n.js"></script>
+  <script src="/gestures.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
