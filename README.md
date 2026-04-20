@@ -17,7 +17,7 @@ Compare any place on Earth across two dates with real Sentinel-2 imagery, a spli
 | Elevation (DEM) | [OpenTopoData](https://api.opentopodata.org) | Free, no key |
 | Reverse geocoding | [Nominatim (OSM)](https://nominatim.openstreetmap.org) | Free, no key |
 | Hand tracking | MediaPipe Hands (CDN) | Free |
-| AI vision *(optional)* | OpenRouter (`nvidia/nemotron-nano-12b-v2-vl:free`, plus free fallback chain) | Optional |
+| AI vision *(optional)* | OpenRouter (`google/gemini-2.5-flash-image`, plus Gemini/free fallback chain) | Optional |
 | Spectral imagery *(optional)* | Sentinel Hub WMS | Optional |
 
 If `OPENROUTER_API_KEY` is unset the app still works — it shows a clean fallback explanation.
@@ -29,7 +29,7 @@ Copy [`.env.local.example`](.env.local.example) → `.env.local` and fill what y
 ```bash
 MAPBOX_PUBLIC_TOKEN=pk.xxx          # required (browser-safe public token)
 OPENROUTER_API_KEY=                 # optional, enables AI analysis
-OPENROUTER_MODEL=nvidia/nemotron-nano-12b-v2-vl:free
+OPENROUTER_MODEL=google/gemini-2.5-flash-image
 SENTINEL_HUB_INSTANCE_ID=           # optional, enables spectral layers
 ```
 

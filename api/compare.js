@@ -265,6 +265,9 @@ async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode, 
   const userModel = (process.env.OPENROUTER_MODEL || '').trim();
   const chain = [
     userModel,
+    'google/gemini-2.5-flash-image',
+    'google/gemini-2.0-flash-lite-001',
+    'google/gemini-3.1-flash-image-preview',
     'nvidia/nemotron-nano-12b-v2-vl:free',
     'google/gemma-4-31b-it:free',
     'google/gemma-4-26b-a4b-it:free',
