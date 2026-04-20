@@ -1,7 +1,7 @@
 {
-  "name": "orbitmixer",
-  "version": "3.0.0",
-  "description": "OrbitMixer — temporal Earth comparison with hand gestures and AI vision.",
+  "name": "orbitviewer",
+  "version": "3.1.0",
+  "description": "OrbitViewer — temporal Earth comparison with hand gestures and AI vision.",
   "type": "commonjs",
   "private": true,
   "engines": {
@@ -12,6 +12,6 @@
     "deploy": "vercel --prod"
   },
   "devDependencies": {
-    "vercel": "^39.0.0"
+    "vercel": "^51.8.0"
   }
 }

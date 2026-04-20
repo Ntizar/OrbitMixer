@@ -1,4 +1,4 @@
-# OrbitMixer
+# OrbitViewer
 
 Compare any place on Earth across two dates, **driven by hand gestures via webcam**, explained by an AI vision model.
 

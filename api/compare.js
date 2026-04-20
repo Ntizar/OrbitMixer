@@ -172,27 +172,56 @@ async function buildDemImage(lat, lon, requestedDate) {
 
 // --------- AI ---------
 
-const PROMPT_TEMPLATE = ({ lat, lon, date_from, date_to, mode }) => `Eres un analista de teledetección. Recibes dos imágenes de satélite del mismo lugar (lat ${lat.toFixed(4)}, lon ${lon.toFixed(4)}) en dos fechas distintas:
-- Imagen 1 (Antes): ${date_from}
-- Imagen 2 (Ahora): ${date_to}
-Modo de análisis: ${mode}.
+const MODE_HINTS = {
+  natural:    'Color natural RGB — fija la atención en color, textura, tonos de suelo y agua.',
+  vegetation: 'Vegetación — fija la atención en tonos verdes, vigor vegetal, deforestación o reforestación, cultivos, estacionalidad.',
+  fire:       'Incendio — fija la atención en cicatrices oscuras / pardas, humo, suelo quemado, pérdida de cobertura repentina.',
+  water:      'Agua — fija la atención en ríos, lagos, embalses, costa, sequía, inundación, retroceso glaciar.',
+  urban:      'Urbano — fija la atención en expansión de ciudades, nuevas vías, edificios, pérdida de suelo verde.'
+};
 
-Compara ambas imágenes y responde EN ESPAÑOL en exactamente 3 líneas cortas (máx. 22 palabras cada una), sin viñetas ni saltos extra:
-1) Qué cambió visualmente.
-2) Posible causa (incendio, deforestación, urbanización, sequía, inundación, etc.).
-3) Una recomendación o dato útil para alguien que viva o investigue allí.`;
+const PROMPT_TEMPLATE = ({ lat, lon, date_from, date_to, mode, place }) => {
+  const hint = MODE_HINTS[mode] || MODE_HINTS.natural;
+  const placeStr = place ? ` (${place})` : '';
+  return `Eres un analista experto en teledetección y observación de la Tierra. Recibes dos imágenes Sentinel-2 del MISMO lugar (lat ${lat.toFixed(4)}, lon ${lon.toFixed(4)})${placeStr} en dos fechas distintas:
+- Imagen 1 (ANTES): ${date_from}
+- Imagen 2 (AHORA): ${date_to}
+
+Modo solicitado: ${mode}. ${hint}
+
+Compara ambas imágenes con detalle y responde EN ESPAÑOL siguiendo EXACTAMENTE este formato Markdown, sin añadir secciones extra ni texto introductorio:
+
+**Resumen** (1-2 frases): qué ves a primera vista que haya cambiado.
+
+**Cambios observados**:
+- 3 a 5 viñetas concretas describiendo cambios visibles (color, textura, cobertura, geometría, límites, agua, vegetación, infraestructura). Si una zona NO cambió, dilo explícitamente.
+
+**Causas probables**:
+- 2 a 3 hipótesis ordenadas de más a menos probable. Considera estacionalidad, sequía, incendios, inundaciones, deforestación, agricultura, urbanización, minería, obras hidráulicas, eventos climáticos.
+
+**Magnitud estimada**: una línea con porcentaje aproximado de la imagen afectado y nivel (bajo/medio/alto/crítico).
+
+**Recomendación**: 1-2 acciones útiles para alguien que viva, trabaje o investigue en esa zona (qué mirar, a quién consultar, qué dataset cruzar).
+
+Reglas:
+- No inventes nombres de pueblos o ríos si no estás seguro.
+- Sé específico ("el cuerpo de agua del cuadrante NE se ha reducido ~30%"), no genérico ("hay cambios").
+- Si las imágenes son casi idénticas, di claramente que no se aprecian cambios significativos y explica por qué.
+- Si una imagen tiene mucha nube, indícalo y advierte que el análisis es parcial.
+- Total: 120-200 palabras.`;
+};
 
 async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode }) {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) return { text: null, used: false };
 
-  const model = process.env.OPENROUTER_MODEL || 'google/gemini-flash-1.5';
+  const model = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-exp:free';
   const prompt = PROMPT_TEMPLATE({ lat, lon, date_from, date_to, mode });
 
   const body = {
     model,
-    max_tokens: 350,
-    temperature: 0.3,
+    max_tokens: 700,
+    temperature: 0.35,
     messages: [{
       role: 'user',
       content: [
@@ -208,8 +237,8 @@ async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode }
     headers: {
       'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://github.com/Ntizar/OrbitMixer',
-      'X-Title': 'OrbitMixer'
+      'HTTP-Referer': 'https://orbitmixer.vercel.app',
+      'X-Title': 'OrbitViewer'
     },
     body: JSON.stringify(body)
   });
@@ -224,16 +253,22 @@ async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode }
 
 function fallbackAnalysis({ mode, date_from, date_to }) {
   const m = {
-    natural: 'cambios visibles en color y textura del terreno',
+    natural:    'cambios visibles en color y textura del terreno',
     vegetation: 'cambios en cobertura vegetal y vigor de la vegetación',
-    fire: 'posibles cicatrices de incendio o zonas quemadas',
-    water: 'cambios en cuerpos de agua, humedad o sequía',
-    urban: 'expansión urbana o cambios en infraestructura'
+    fire:       'posibles cicatrices de incendio o zonas quemadas',
+    water:      'cambios en cuerpos de agua, humedad o sequía',
+    urban:      'expansión urbana o cambios en infraestructura'
   }[mode] || 'cambios entre las dos fechas';
   return [
-    `1) Comparación visual entre ${date_from} y ${date_to}: ${m}.`,
-    `2) Causas posibles: estacionalidad, actividad humana, eventos climáticos extremos o uso del suelo.`,
-    `3) Recomendación: activa la clave OPENROUTER_API_KEY para una explicación detallada por IA.`
+    `**Resumen**: comparación visual entre ${date_from} y ${date_to}: ${m}.`,
+    '',
+    '**Cambios observados**:',
+    '- Análisis automático no disponible sin clave de IA.',
+    '',
+    '**Causas probables**:',
+    '- Estacionalidad, actividad humana o eventos climáticos.',
+    '',
+    '**Recomendación**: configura `OPENROUTER_API_KEY` en Vercel para obtener un análisis detallado.'
   ].join('\n');
 }
 

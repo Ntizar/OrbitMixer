@@ -26,7 +26,8 @@
       'ai-empty': 'Selecciona un punto en el mapa o sostén el pulgar arriba 5 s para comparar.',
       'ter-title': 'Territorio',
       'ter-place': 'Lugar', 'ter-region': 'Región', 'ter-country': 'País', 'ter-label': 'Etiqueta',
-      'ai-real': 'IA real', 'ai-fallback': 'Fallback'
+      'ai-real': 'IA real', 'ai-fallback': 'Fallback',
+      'help-btn': 'Ayuda'
     },
     en: {
       'src-mapbox': 'Mapbox Demo',
@@ -53,7 +54,8 @@
       'ai-empty': 'Pick a point on the map or hold thumbs up for 5 s to compare.',
       'ter-title': 'Territory',
       'ter-place': 'Place', 'ter-region': 'Region', 'ter-country': 'Country', 'ter-label': 'Label',
-      'ai-real': 'Real AI', 'ai-fallback': 'Fallback'
+      'ai-real': 'Real AI', 'ai-fallback': 'Fallback',
+      'help-btn': 'Help'
     }
   };
 

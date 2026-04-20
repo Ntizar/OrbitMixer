@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>OrbitMixer · comparador temporal de la Tierra</title>
+  <title>OrbitViewer · comparador temporal de la Tierra</title>
   <meta name="description" content="Compara cualquier lugar de la Tierra entre dos fechas con gestos de la mano e inteligencia artificial." />
 
   <link rel="preconnect" href="https://api.mapbox.com" crossorigin>
@@ -27,14 +27,82 @@
 
   <div id="virtual-cursor" aria-hidden="true"></div>
 
+  <!-- ============== HELP MODAL ============== -->
+  <div id="help-overlay" class="help-overlay" hidden>
+    <div class="help-modal glass-intense glass-specular" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <button class="help-close btn btn-glass" id="help-close" aria-label="Cerrar">×</button>
+      <h2 id="help-title" class="text-gradient" style="margin:0 0 6px;">OrbitViewer · cómo funciona</h2>
+      <p class="small" style="margin:0 0 18px;">
+        Compara cualquier punto de la Tierra entre dos fechas con imágenes Sentinel-2 reales y una IA que te explica qué cambió. Puedes manejarlo con <b>ratón y teclado</b> o, si quieres, con <b>gestos de la mano</b> usando tu webcam.
+      </p>
+
+      <h3 class="help-h3">1. Elegir un lugar</h3>
+      <ul class="help-list">
+        <li><b>Click</b> en cualquier punto del globo 3D (rotable, con zoom rueda).</li>
+        <li>O usa la cámara → mantén <b>👍 pulgar arriba 5 segundos</b> apuntando al punto.</li>
+      </ul>
+
+      <h3 class="help-h3">2. Elegir las fechas</h3>
+      <ul class="help-list">
+        <li>Píldora inferior izquierda del mapa: <b>Antes</b> y <b>Ahora</b>. Por defecto hoy y hace 365 días.</li>
+        <li>El backend busca la escena Sentinel-2 más cercana (±30 a ±60 días, menos nubes).</li>
+      </ul>
+
+      <h3 class="help-h3">3. Elegir el modo</h3>
+      <ul class="help-list">
+        <li><b>Color natural</b> (por defecto), <b>Vegetación</b>, <b>Incendio</b>, <b>Agua</b>, <b>Urbano</b>.</li>
+        <li><b>Elevación</b> (capa DEM): renderiza la altimetría con OpenTopoData (gratis).</li>
+      </ul>
+
+      <h3 class="help-h3">4. Comparar</h3>
+      <ul class="help-list">
+        <li>Pulsa <b>Capturar y comparar</b>, o haz click en el mapa, o usa el pulgar arriba.</li>
+        <li>Aparece la vista <b>Antes / Ahora</b> con divisor arrastrable y un slider.</li>
+        <li>La IA escribe un análisis en español: resumen, cambios, causas, magnitud, recomendación.</li>
+      </ul>
+
+      <h3 class="help-h3">5. Gestos con la mano <span class="small">(opcional)</span></h3>
+      <p class="small" style="margin:0 0 8px;">
+        Activa la cámara desde el botón en el mapa. Tres modos arriba a la derecha:
+        <b>Mapa</b> (los gestos mueven el globo), <b>Comparador</b> (mueven el divisor) o <b>Manual</b> (gestos desactivados).
+      </p>
+      <table class="help-table">
+        <thead><tr><th>Gesto</th><th>En modo Mapa</th><th>En modo Comparador</th></tr></thead>
+        <tbody>
+          <tr><td>☝️ <b>Índice</b> apuntando</td><td>Mueve el cursor virtual</td><td>Mueve el cursor virtual</td></tr>
+          <tr><td>✊ <b>Puño</b> cerrado</td><td>Arrastra el mapa (paneo)</td><td>—</td></tr>
+          <tr><td>✌️ <b>V</b> (índice + corazón)</td><td>Zoom <b>in</b></td><td>Mueve divisor a la <b>derecha</b></td></tr>
+          <tr><td>🖐️ <b>Mano abierta</b> (4 dedos)</td><td>Zoom <b>out</b></td><td>Mueve divisor a la <b>izquierda</b></td></tr>
+          <tr><td>👍 <b>Pulgar arriba</b> (5 s)</td><td colspan="2"><b>Bloquea el punto y dispara la comparación</b></td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:10px;">
+        Tips: mantén la mano <b>centrada</b> y <b>bien iluminada</b>. Si el pulgar se mueve mucho durante la cuenta atrás, se reinicia. Sin webcam todo funciona igual con ratón y teclado.
+      </p>
+
+      <h3 class="help-h3">Fuentes (todo gratis)</h3>
+      <ul class="help-list">
+        <li><b>Sentinel-2 L2A</b> vía Earth Search STAC (sin clave).</li>
+        <li>Render PNG vía <b>TiTiler.xyz</b> (sin clave).</li>
+        <li>Elevación: <b>OpenTopoData</b>. Geocoding inverso: <b>Nominatim (OSM)</b>.</li>
+        <li>Globo 3D: <b>Mapbox GL JS</b>. IA: <b>OpenRouter</b> (Gemini 2.0 Flash, gratis).</li>
+      </ul>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+        <button class="btn btn-primary" id="help-close-2">Entendido</button>
+      </div>
+    </div>
+  </div>
+
   <main class="app">
 
     <!-- ============== NAVBAR ============== -->
     <nav class="navbar glass-intense glass-specular" aria-label="Barra principal">
       <div class="brand">
         <span class="brand-dot"></span>
-        <span class="text-gradient">OrbitMixer</span>
+        <span class="text-gradient">OrbitViewer</span>
       </div>
+      <button id="help-toggle" class="btn btn-glass" title="Cómo funciona" aria-label="Ayuda">?  <span data-i18n="help-btn">Ayuda</span></button>
       <span class="badge badge-info" id="status-pill">PUBLIC DEMO</span>
       <div class="spacer"></div>
       <div class="segmented-control" role="tablist" aria-label="Idioma">

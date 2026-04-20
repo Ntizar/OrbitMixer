@@ -60,6 +60,38 @@
     });
   }
 
+  // ---------- tiny markdown renderer (bold + bullets + line breaks) ----------
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+  function renderMarkdown(src) {
+    const lines = String(src || '').split(/\r?\n/);
+    const out = [];
+    let inList = false;
+    for (const raw of lines) {
+      const line = raw.trimEnd();
+      if (/^\s*[-*]\s+/.test(line)) {
+        if (!inList) { out.push('<ul>'); inList = true; }
+        const item = line.replace(/^\s*[-*]\s+/, '');
+        out.push('<li>' + inlineFmt(item) + '</li>');
+      } else {
+        if (inList) { out.push('</ul>'); inList = false; }
+        if (line === '') out.push('');
+        else out.push('<p>' + inlineFmt(line) + '</p>');
+      }
+    }
+    if (inList) out.push('</ul>');
+    return out.join('\n');
+  }
+  function inlineFmt(s) {
+    let h = escapeHtml(s);
+    h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+    return h;
+  }
+
   // ---------------- init ----------------
 
   let map = null;
@@ -145,6 +177,23 @@
     // webcam toggle
     $('#webcam-toggle').addEventListener('click', toggleWebcam);
 
+    // help modal
+    const overlay = $('#help-overlay');
+    const showHelp = () => overlay.hidden = false;
+    const hideHelp = () => overlay.hidden = true;
+    $('#help-toggle').addEventListener('click', showHelp);
+    $('#help-close').addEventListener('click', hideHelp);
+    $('#help-close-2').addEventListener('click', hideHelp);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) hideHelp(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideHelp(); });
+    // auto-open on first visit
+    try {
+      if (!localStorage.getItem('orbitviewer.helpSeen')) {
+        showHelp();
+        localStorage.setItem('orbitviewer.helpSeen', '1');
+      }
+    } catch (_) {}
+
     // dates
     $('#date-from').addEventListener('change', () => { /* nothing — used at compare time */ });
     $('#date-to').addEventListener('change', () => {});
@@ -199,10 +248,13 @@
     document.addEventListener('gesture:cursor', (ev) => {
       if (state.handControlMode === 'manual') return;
       const c = $('#virtual-cursor');
-      const x = ev.detail.x * window.innerWidth;
-      const y = ev.detail.y * window.innerHeight;
-      c.style.left = `${x}px`;
-      c.style.top  = `${y}px`;
+      // EMA smoothing for less jitter
+      const targetX = ev.detail.x * window.innerWidth;
+      const targetY = ev.detail.y * window.innerHeight;
+      state._cx = state._cx == null ? targetX : state._cx + (targetX - state._cx) * 0.45;
+      state._cy = state._cy == null ? targetY : state._cy + (targetY - state._cy) * 0.45;
+      c.style.left = `${state._cx}px`;
+      c.style.top  = `${state._cy}px`;
     });
 
     document.addEventListener('gesture:pan', (ev) => {
@@ -309,7 +361,8 @@
   }
 
   function renderAi(data, isError) {
-    $('#ai-text').textContent = data.ai_analysis || '—';
+    const txt = data.ai_analysis || '—';
+    $('#ai-text').innerHTML = renderMarkdown(txt);
     const meta = $('#ai-meta');
     meta.innerHTML = '';
     const badge = document.createElement('span');
