@@ -36,7 +36,7 @@
 .map-card {
   position: relative;
   grid-column: 1; grid-row: 2;
-  min-height: 560px;
+  min-height: 520px;
   padding: 0;
   overflow: hidden;
 }
@@ -220,7 +220,7 @@
 /* ----- responsive ----- */
 @media (max-width: 1100px) {
   .app { grid-template-columns: minmax(0, 1fr); }
-  .map-card { grid-column: 1; grid-row: 2; min-height: 460px; }
+  .map-card { grid-column: 1; grid-row: 2; min-height: 420px; }
   .side { grid-column: 1; grid-row: 3; }
 }
 

@@ -3,7 +3,7 @@
 // Emits CustomEvents on `document`:
 //   gesture:cursor   { x, y }            (normalized 0..1, mirrored)
 //   gesture:pan      { dx, dy }
-//   gesture:zoom     { dir: +1 | -1 }    (one step, throttled)
+//   gesture:zoom     { dir: +1 }          (one step, throttled)
 //   gesture:split    { dir: +1 | -1 }    (one step, throttled)
 //   gesture:thumb    { holdMs, ratio }
 //   gesture:lock     { x, y }            (fired when thumb held >= 5s + drift ok)
@@ -222,10 +222,10 @@
       if (g === 'v' || g === 'open') {
         const isV = g === 'v';
         if (handMode === 'map') {
-          if (now - this.lastZoomAt > CFG.zoomThrottleMs) {
+          if (isV && now - this.lastZoomAt > CFG.zoomThrottleMs) {
             this.lastZoomAt = now;
             document.dispatchEvent(new CustomEvent('gesture:zoom',
-              { detail: { dir: isV ? +1 : -1 } }));
+              { detail: { dir: +1 } }));
           }
         } else if (handMode === 'compare') {
           if (now - this.lastSplitAt > CFG.splitThrottleMs) {

@@ -16,8 +16,24 @@ const OPENTOPO = 'https://api.opentopodata.org/v1';
 
 // --------- helpers ---------
 
-function bboxAround(lat, lon, kmHalf = 5) {
-  // ~10 km square (5 km half-side)
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function resolveSelectionHalfKm(body) {
+  const explicit = Number(body.selection_half_km);
+  if (Number.isFinite(explicit)) return clamp(explicit, 0.35, 5);
+
+  const zoom = Number(body.map_zoom);
+  if (Number.isFinite(zoom)) {
+    return clamp(2.2 / Math.pow(1.24, zoom - 5), 0.25, 3.2);
+  }
+
+  return 2.2;
+}
+
+function bboxAround(lat, lon, kmHalf = 2.2) {
+  // adaptive square around the selected point, usually tighter than 10 km
   const dLat = kmHalf / 111;
   const cosLat = Math.max(0.05, Math.cos(lat * Math.PI / 180));
   const dLon = Math.min(0.15, kmHalf / (111 * cosLat));
@@ -88,8 +104,8 @@ function titilerUrl(cogHref, bbox) {
   return u.toString();
 }
 
-async function buildSentinelImage(lat, lon, requestedDate) {
-  const bbox = bboxAround(lat, lon, 5);
+async function buildSentinelImage(lat, lon, requestedDate, selectionHalfKm) {
+  const bbox = bboxAround(lat, lon, selectionHalfKm);
   let feat = await searchSentinel(bbox, requestedDate, 30);
   if (!feat) feat = await searchSentinel(bbox, requestedDate, 60);
   if (!feat) return { ok: false, bbox };
@@ -103,14 +119,15 @@ async function buildSentinelImage(lat, lon, requestedDate) {
     source: 'earth-search-stac+titiler',
     cloud_cover: feat.properties['eo:cloud_cover'],
     bbox,
+    selection_half_km: selectionHalfKm,
     scene_id: feat.id
   };
 }
 
 // --------- DEM via OpenTopoData ---------
 
-async function buildDemImage(lat, lon, requestedDate) {
-  const bbox = bboxAround(lat, lon, 5);
+async function buildDemImage(lat, lon, requestedDate, selectionHalfKm) {
+  const bbox = bboxAround(lat, lon, selectionHalfKm);
   const [w, s, e, n] = bbox;
   const N = 8;
   const points = [];
@@ -165,9 +182,32 @@ async function buildDemImage(lat, lon, requestedDate) {
     date: requestedDate,
     source: 'opentopodata',
     bbox,
+    selection_half_km: selectionHalfKm,
     elevation_min: min,
     elevation_max: max
   };
+}
+
+async function fetchPlaceLabel(lat, lon) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&accept-language=es,en`;
+    const r = await fetch(url, {
+      headers: {
+        'User-Agent': 'OrbitViewer/3.1 (contact via repo)',
+        'Accept': 'application/json'
+      }
+    });
+    if (!r.ok) return '';
+    const data = await r.json();
+    const a = data.address || {};
+    return [
+      a.city || a.town || a.village || a.county || a.state_district,
+      a.state || a.region,
+      a.country
+    ].filter(Boolean).join(', ') || data.display_name || '';
+  } catch (_) {
+    return '';
+  }
 }
 
 // --------- AI ---------
@@ -211,22 +251,23 @@ Reglas:
 - Total: 120-200 palabras.`;
 };
 
-async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode }) {
+async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode, place }) {
   const key = (process.env.OPENROUTER_API_KEY || '').trim();
   if (!key) return { text: null, used: false, model: null };
 
   const userModel = (process.env.OPENROUTER_MODEL || '').trim();
   const chain = [
     userModel,
+    'nvidia/nemotron-nano-12b-v2-vl:free',
     'google/gemma-4-31b-it:free',
     'google/gemma-4-26b-a4b-it:free',
-    'nvidia/nemotron-nano-12b-v2-vl:free',
     'google/gemma-3-27b-it:free',
     'google/gemma-3-12b-it:free',
-    'google/gemma-3-4b-it:free'
+    'google/gemma-3-4b-it:free',
+    'openai/gpt-4o-mini'
   ].filter(Boolean).filter((m, i, a) => a.indexOf(m) === i); // dedupe
 
-  const prompt = PROMPT_TEMPLATE({ lat, lon, date_from, date_to, mode });
+  const prompt = PROMPT_TEMPLATE({ lat, lon, date_from, date_to, mode, place });
   const messages = [{
     role: 'user',
     content: [
@@ -325,6 +366,7 @@ module.exports = async (req, res) => {
   const date_to = (body.date_to || '').toString();
   const mode = (body.mode || 'natural').toString();
   const layer = (body.layer || 'TRUE_COLOR').toString().toUpperCase();
+  const selectionHalfKm = resolveSelectionHalfKm(body);
 
   if (!Number.isFinite(lat) || !Number.isFinite(lon) ||
       !/^\d{4}-\d{2}-\d{2}$/.test(date_from) ||
@@ -334,9 +376,10 @@ module.exports = async (req, res) => {
 
   try {
     const builder = layer === 'DEM' ? buildDemImage : buildSentinelImage;
-    const [imgBefore, imgAfter] = await Promise.all([
-      builder(lat, lon, date_from),
-      builder(lat, lon, date_to)
+    const [imgBefore, imgAfter, place] = await Promise.all([
+      builder(lat, lon, date_from, selectionHalfKm),
+      builder(lat, lon, date_to, selectionHalfKm),
+      layer === 'DEM' ? Promise.resolve('') : fetchPlaceLabel(lat, lon)
     ]);
 
     if (!imgBefore.ok || !imgAfter.ok) {
@@ -353,6 +396,7 @@ module.exports = async (req, res) => {
     let renderNote = layer === 'DEM'
       ? 'DEM renderizado vía OpenTopoData (sin clave).'
       : 'Sentinel-2 L2A vía Earth Search STAC + TiTiler (sin clave).';
+    renderNote += ` Ventana: ~${(selectionHalfKm * 2).toFixed(1)} km.`;
 
     if (layer === 'DEM') {
       aiText = demAnalysis({
@@ -370,7 +414,8 @@ module.exports = async (req, res) => {
           lat, lon,
           date_from: imgBefore.date,
           date_to: imgAfter.date,
-          mode
+          mode,
+          place
         });
         if (ai.used && ai.text) {
           aiText = ai.text;

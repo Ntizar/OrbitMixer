@@ -96,6 +96,24 @@
   // ---------------- init ----------------
 
   let map = null;
+  let selectionMarker = null;
+
+  function updateSelection(lat, lon, options = {}) {
+    state.selectionLat = lat;
+    state.selectionLon = lon;
+    setHud();
+
+    if (selectionMarker) {
+      selectionMarker.setLngLat([lon, lat]);
+    }
+
+    if (options.compare) {
+      void runCompare(options.trigger || 'selection');
+    }
+    if (options.fetchTerritory !== false) {
+      void fetchTerritory();
+    }
+  }
 
   async function loadConfig() {
     try {
@@ -119,19 +137,15 @@
       style: 'mapbox://styles/mapbox/satellite-streets-v12',
       projection: 'globe',
       center: [state.selectionLon, state.selectionLat],
-      zoom: 3
+      zoom: 1.85
     });
     map.on('style.load', () => map.setFog({}));
-    map.on('click', (e) => {
-      state.selectionLat = e.lngLat.lat;
-      state.selectionLon = e.lngLat.lng;
-      setHud();
-      void runCompare('click');
-      void fetchTerritory();
-    });
-    new window.mapboxgl.Marker({ color: '#f97316' })
+    selectionMarker = new window.mapboxgl.Marker({ color: '#f97316' })
       .setLngLat([state.selectionLon, state.selectionLat])
       .addTo(map);
+    map.on('click', (e) => {
+      updateSelection(e.lngLat.lat, e.lngLat.lng, { compare: true, trigger: 'click' });
+    });
   }
 
   // ---------------- date inputs ----------------
@@ -289,14 +303,12 @@
       const py = ev.detail.y * window.innerHeight;
       if (map && px >= rect.left && px <= rect.right && py >= rect.top && py <= rect.bottom) {
         const ll = map.unproject([px - rect.left, py - rect.top]);
-        state.selectionLat = ll.lat;
-        state.selectionLon = ll.lng;
+        updateSelection(ll.lat, ll.lng, { fetchTerritory: true });
       }
       state.isLocked = true;
       state.lockUntil = performance.now() + 6000;
       setTimeout(() => { state.isLocked = false; }, 6000);
       void runCompare('thumbs-up');
-      void fetchTerritory();
     });
 
     document.addEventListener('gesture:status', (ev) => {
@@ -326,7 +338,8 @@
         date_from: $('#date-from').value || yearAgo,
         date_to:   $('#date-to').value   || today,
         mode: state.currentMode,
-        layer: state.currentLayer
+        layer: state.currentLayer,
+        map_zoom: map ? map.getZoom() : 1.85
       };
       const r = await fetch('/api/compare', {
         method: 'POST',
