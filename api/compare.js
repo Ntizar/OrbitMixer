@@ -218,10 +218,12 @@ async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode }
   const userModel = (process.env.OPENROUTER_MODEL || '').trim();
   const chain = [
     userModel,
-    'meta-llama/llama-3.2-90b-vision-instruct:free',
-    'meta-llama/llama-3.2-11b-vision-instruct:free',
-    'qwen/qwen-2.5-vl-7b-instruct:free',
-    'google/gemini-flash-1.5'
+    'google/gemma-4-31b-it:free',
+    'google/gemma-4-26b-a4b-it:free',
+    'nvidia/nemotron-nano-12b-v2-vl:free',
+    'google/gemma-3-27b-it:free',
+    'google/gemma-3-12b-it:free',
+    'google/gemma-3-4b-it:free'
   ].filter(Boolean).filter((m, i, a) => a.indexOf(m) === i); // dedupe
 
   const prompt = PROMPT_TEMPLATE({ lat, lon, date_from, date_to, mode });
@@ -235,6 +237,7 @@ async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode }
   }];
 
   let lastErr = null;
+  const failures = [];
   for (const model of chain) {
     try {
       const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -250,6 +253,7 @@ async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode }
       if (!r.ok) {
         const t = await r.text().catch(() => '');
         lastErr = new Error(`${model}: ${r.status} ${t.slice(0, 160)}`);
+        failures.push(lastErr.message);
         continue;
       }
       const j = await r.json();
@@ -258,11 +262,13 @@ async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode }
         return { text: text.trim(), used: true, model };
       }
       lastErr = new Error(`${model}: respuesta vacía`);
+      failures.push(lastErr.message);
     } catch (e) {
       lastErr = e;
+      failures.push(`${model}: ${String(e && e.message || e)}`);
     }
   }
-  throw lastErr || new Error('AI sin modelo disponible');
+  throw new Error(failures.slice(0, 3).join(' | ') || String(lastErr && lastErr.message || lastErr || 'AI sin modelo disponible'));
 }
 
 function fallbackAnalysis({ mode, date_from, date_to }) {

@@ -1,6 +1,6 @@
 # OrbitViewer
 
-Compare any place on Earth across two dates, **driven by hand gestures via webcam**, explained by an AI vision model.
+Compare any place on Earth across two dates with real Sentinel-2 imagery, a split before/after viewer, optional hand-gesture control, and an AI vision explanation in Spanish.
 
 - Vanilla HTML/CSS/JS frontend (no build step) in [public/](public/)
 - Vercel Serverless Functions (Node 20, CommonJS) in [api/](api/)
@@ -17,7 +17,7 @@ Compare any place on Earth across two dates, **driven by hand gestures via webca
 | Elevation (DEM) | [OpenTopoData](https://api.opentopodata.org) | Free, no key |
 | Reverse geocoding | [Nominatim (OSM)](https://nominatim.openstreetmap.org) | Free, no key |
 | Hand tracking | MediaPipe Hands (CDN) | Free |
-| AI vision *(optional)* | OpenRouter (`google/gemini-flash-1.5`) | Optional |
+| AI vision *(optional)* | OpenRouter (`google/gemma-4-31b-it:free`, plus fallback chain) | Optional |
 | Spectral imagery *(optional)* | Sentinel Hub WMS | Optional |
 
 If `OPENROUTER_API_KEY` is unset the app still works — it shows a clean fallback explanation.
@@ -29,7 +29,7 @@ Copy [`.env.local.example`](.env.local.example) → `.env.local` and fill what y
 ```bash
 MAPBOX_PUBLIC_TOKEN=pk.xxx          # required (browser-safe public token)
 OPENROUTER_API_KEY=                 # optional, enables AI analysis
-OPENROUTER_MODEL=google/gemini-flash-1.5
+OPENROUTER_MODEL=google/gemma-4-31b-it:free
 SENTINEL_HUB_INSTANCE_ID=           # optional, enables spectral layers
 ```
 
@@ -61,6 +61,16 @@ npm run deploy         # vercel --prod
 | 👍 Thumbs up — hold 5 s | Lock area + run comparison | Lock area + run comparison |
 
 Mode **Manual** disables all gesture actions — mouse and keyboard work as usual.
+
+## What each area does
+
+- The globe lets you pick the exact place to compare.
+- The date pill controls the two comparison dates: **Before** and **Now**.
+- The analysis mode buttons bias the AI explanation toward vegetation, fire, water, urban change, natural color, or elevation.
+- The split card lets you inspect the same location across the two dates with drag or range input.
+- The AI card explains what changed, likely causes, estimated magnitude, and a practical recommendation.
+- The territory card resolves the selected point into place, region, and country.
+- The webcam card tracks the hand and shows thumbs-up hold progress, but the app remains fully usable with mouse and keyboard only.
 
 ## Endpoints
 

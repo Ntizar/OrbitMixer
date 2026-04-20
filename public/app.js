@@ -1,5 +1,5 @@
 // =====================================================================
-// OrbitMixer — main app
+// OrbitViewer — main app
 // =====================================================================
 
 (function () {
@@ -27,6 +27,7 @@
     lastCompareRequestId: 0,
     config: { mapboxToken: '', aiEnabled: false, spectralEnabled: false }
   };
+  window.OrbitViewerState = state;
   window.OrbitMixerState = state;
 
   // ---------------- helpers ----------------

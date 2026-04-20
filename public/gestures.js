@@ -1,5 +1,5 @@
 // =====================================================================
-// OrbitMixer — gestures (MediaPipe Hands)
+// OrbitViewer — gestures (MediaPipe Hands)
 // Emits CustomEvents on `document`:
 //   gesture:cursor   { x, y }            (normalized 0..1, mirrored)
 //   gesture:pan      { dx, dy }
@@ -203,7 +203,8 @@
       this.emitStatus(`gesto: ${g}`);
 
       // ----- gesture actions -----
-      const handMode = window.OrbitMixerState ? window.OrbitMixerState.handControlMode : 'map';
+      const appState = window.OrbitViewerState || window.OrbitMixerState;
+      const handMode = appState ? appState.handControlMode : 'map';
 
       if (g === 'fist') {
         if (handMode === 'map') {
