@@ -292,6 +292,21 @@ function fallbackAnalysis({ mode, date_from, date_to }) {
   ].join('\n');
 }
 
+function demAnalysis({ date_from, date_to, min, max }) {
+  return [
+    `**Resumen**: la capa de elevación es una referencia topográfica estática; no representa un cambio temporal entre ${date_from} y ${date_to}.`,
+    '',
+    '**Cambios observados**:',
+    '- El relieve base se mantiene igual entre ambas fechas porque procede de un modelo digital del terreno.',
+    `- Rango altimétrico aproximado en la ventana seleccionada: ${Math.round(min)} a ${Math.round(max)} m.`,
+    '',
+    '**Causas probables**:',
+    '- No aplica un análisis de cambio temporal en DEM; esta capa sirve como contexto de altitud y pendiente.',
+    '',
+    '**Recomendación**: usa DEM para interpretar drenaje, cuencas, laderas y exposición; usa Sentinel-2 RGB para detectar cambios reales en el tiempo.'
+  ].join('\n');
+}
+
 // --------- main handler ---------
 
 module.exports = async (req, res) => {
@@ -339,22 +354,32 @@ module.exports = async (req, res) => {
       ? 'DEM renderizado vía OpenTopoData (sin clave).'
       : 'Sentinel-2 L2A vía Earth Search STAC + TiTiler (sin clave).';
 
-    try {
-      const ai = await runAi({
-        urlBefore: imgBefore.url,
-        urlAfter: imgAfter.url,
-        lat, lon,
+    if (layer === 'DEM') {
+      aiText = demAnalysis({
         date_from: imgBefore.date,
         date_to: imgAfter.date,
-        mode
+        min: imgBefore.elevation_min,
+        max: imgBefore.elevation_max
       });
-      if (ai.used && ai.text) {
-        aiText = ai.text;
-        isMock = false;
-        renderNote += ` IA: ${ai.model}.`;
+      renderNote += ' IA omitida en DEM porque la capa es estática y se genera como SVG local.';
+    } else {
+      try {
+        const ai = await runAi({
+          urlBefore: imgBefore.url,
+          urlAfter: imgAfter.url,
+          lat, lon,
+          date_from: imgBefore.date,
+          date_to: imgAfter.date,
+          mode
+        });
+        if (ai.used && ai.text) {
+          aiText = ai.text;
+          isMock = false;
+          renderNote += ` IA: ${ai.model}.`;
+        }
+      } catch (e) {
+        renderNote += ` IA no disponible (${String(e.message || e).slice(0, 80)}).`;
       }
-    } catch (e) {
-      renderNote += ` IA no disponible (${String(e.message || e).slice(0, 80)}).`;
     }
 
     if (!aiText) {
