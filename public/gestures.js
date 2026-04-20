@@ -17,6 +17,8 @@
     thumbWarmupMs: 300,
     thumbHoldMs: 5000,
     thumbMaxDrift: 0.18,
+    pointerSmoothing: 0.28,
+    panDeadzone: 0.002,
     zoomThrottleMs: 700,
     splitThrottleMs: 70
   };
@@ -93,6 +95,7 @@
       // pan
       this.lastPinchPos = null;
       this.lastStableCursor = null;
+      this.smoothCursor = null;
 
       // thumb
       this.thumbStart = 0;
@@ -190,6 +193,7 @@
         this.lastGesture = 'idle';
         this.gestureSince = 0;
         this.lastPinchPos = null;
+        this.smoothCursor = null;
         this._maybeResetThumb();
         return;
       }
@@ -206,8 +210,16 @@
       }
 
       // Mirror x because video is mirrored.
-      const cursorX = 1 - pointer.x;
-      const cursorY = pointer.y;
+      const rawX = 1 - pointer.x;
+      const rawY = pointer.y;
+      if (!this.smoothCursor) {
+        this.smoothCursor = { x: rawX, y: rawY };
+      } else {
+        this.smoothCursor.x += (rawX - this.smoothCursor.x) * CFG.pointerSmoothing;
+        this.smoothCursor.y += (rawY - this.smoothCursor.y) * CFG.pointerSmoothing;
+      }
+      const cursorX = this.smoothCursor.x;
+      const cursorY = this.smoothCursor.y;
       if (g !== 'thumb') {
         this.lastStableCursor = { x: cursorX, y: cursorY };
       }
@@ -238,7 +250,9 @@
           if (this.lastPinchPos) {
             const dx = (cursorX - this.lastPinchPos.x);
             const dy = (cursorY - this.lastPinchPos.y);
-            document.dispatchEvent(new CustomEvent('gesture:pan', { detail: { dx, dy } }));
+            if (Math.abs(dx) + Math.abs(dy) >= CFG.panDeadzone) {
+              document.dispatchEvent(new CustomEvent('gesture:pan', { detail: { dx, dy } }));
+            }
           }
           this.lastPinchPos = { x: cursorX, y: cursorY };
         }

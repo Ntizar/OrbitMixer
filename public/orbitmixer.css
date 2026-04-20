@@ -42,6 +42,31 @@
 }
 #map { position: absolute; inset: 0; border-radius: inherit; }
 
+.map-target {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid rgba(249, 115, 22, 0.95);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 18px rgba(249, 115, 22, 0.45);
+  pointer-events: none;
+  z-index: 4;
+}
+.map-target::before,
+.map-target::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: rgba(255,255,255,0.9);
+  transform: translate(-50%, -50%);
+}
+.map-target::before { width: 2px; height: 18px; }
+.map-target::after { width: 18px; height: 2px; }
+
 .map-overlay {
   position: absolute;
   pointer-events: none; /* children re-enable */

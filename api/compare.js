@@ -27,13 +27,13 @@ function resolveSelectionHalfKm(body) {
 
   const zoom = Number(body.map_zoom);
   if (Number.isFinite(zoom)) {
-    return clamp(2.2 / Math.pow(1.24, zoom - 5), 0.25, 3.2);
+    return clamp(3.8 / Math.pow(1.17, zoom - 4), 0.45, 4.8);
   }
 
-  return 2.2;
+  return 3.8;
 }
 
-function bboxAround(lat, lon, kmHalf = 2.2) {
+function bboxAround(lat, lon, kmHalf = 3.8) {
   // adaptive square around the selected point, usually tighter than 10 km
   const dLat = kmHalf / 111;
   const cosLat = Math.max(0.05, Math.cos(lat * Math.PI / 180));

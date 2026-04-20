@@ -97,6 +97,7 @@
 
   let map = null;
   let selectionMarker = null;
+  let territoryDebounce = null;
 
   function updateSelection(lat, lon, options = {}) {
     state.selectionLat = lat;
@@ -113,6 +114,14 @@
     if (options.fetchTerritory !== false) {
       void fetchTerritory();
     }
+  }
+
+  function queueTerritoryFetch(delay = 180) {
+    if (territoryDebounce) clearTimeout(territoryDebounce);
+    territoryDebounce = setTimeout(() => {
+      territoryDebounce = null;
+      void fetchTerritory();
+    }, delay);
   }
 
   async function loadConfig() {
@@ -143,8 +152,17 @@
     selectionMarker = new window.mapboxgl.Marker({ color: '#f97316' })
       .setLngLat([state.selectionLon, state.selectionLat])
       .addTo(map);
+    map.on('move', () => {
+      const center = map.getCenter();
+      updateSelection(center.lat, center.lng, { fetchTerritory: false });
+    });
+    map.on('moveend', () => {
+      queueTerritoryFetch();
+    });
     map.on('click', (e) => {
-      updateSelection(e.lngLat.lat, e.lngLat.lng, { compare: true, trigger: 'click' });
+      map.easeTo({ center: e.lngLat, duration: 280 });
+      updateSelection(e.lngLat.lat, e.lngLat.lng, { compare: true, trigger: 'click', fetchTerritory: false });
+      queueTerritoryFetch(320);
     });
   }
 
@@ -277,7 +295,7 @@
       // map.panBy(): positive x moves world right, so cursor right (positive dx) should pan opposite
       const W = $('#map').clientWidth;
       const H = $('#map').clientHeight;
-      map.panBy([-ev.detail.dx * W * 1.2, -ev.detail.dy * H * 1.2], { duration: 60 });
+      map.panBy([-ev.detail.dx * W * 0.78, -ev.detail.dy * H * 0.78], { duration: 90 });
     });
 
     document.addEventListener('gesture:zoom', (ev) => {
@@ -296,14 +314,10 @@
 
     document.addEventListener('gesture:lock', (ev) => {
       const c = $('#virtual-cursor'); c.classList.remove('locked');
-      // turn cursor pos -> map lngLat (only if cursor is over the map)
-      const mapEl = $('#map');
-      const rect = mapEl.getBoundingClientRect();
-      const px = ev.detail.x * window.innerWidth;
-      const py = ev.detail.y * window.innerHeight;
-      if (map && px >= rect.left && px <= rect.right && py >= rect.top && py <= rect.bottom) {
-        const ll = map.unproject([px - rect.left, py - rect.top]);
-        updateSelection(ll.lat, ll.lng, { fetchTerritory: true });
+      if (map) {
+        const center = map.getCenter();
+        updateSelection(center.lat, center.lng, { fetchTerritory: false });
+        queueTerritoryFetch(120);
       }
       state.isLocked = true;
       state.lockUntil = performance.now() + 6000;
