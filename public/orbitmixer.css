@@ -6,7 +6,7 @@
 .app {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto auto auto;
   gap: 18px;
   padding: 18px;
   max-width: 1600px;
@@ -36,7 +36,7 @@
 .map-card {
   position: relative;
   grid-column: 1; grid-row: 2;
-  min-height: 520px;
+  min-height: 500px;
   padding: 0;
   overflow: hidden;
 }
@@ -95,7 +95,7 @@
 
 /* ----- side column ----- */
 .side {
-  grid-column: 2; grid-row: 2;
+  grid-column: 2; grid-row: 2 / span 2;
   display: flex; flex-direction: column; gap: 14px;
   min-width: 0;
 }
@@ -140,6 +140,11 @@
 
 /* ----- split-view card ----- */
 .split-card { padding: 14px; }
+.split-card-feature {
+  grid-column: 1;
+  grid-row: 3;
+  align-self: start;
+}
 .split-stage {
   position: relative;
   width: 100%;
@@ -148,6 +153,10 @@
   overflow: hidden;
   background: #000;
   user-select: none;
+}
+.split-card-feature .split-stage {
+  max-width: 860px;
+  min-height: 560px;
 }
 .split-stage img {
   position: absolute; inset: 0;
@@ -196,11 +205,25 @@
 
 /* ----- AI / territory cards ----- */
 .ai-text {
-  font: 500 14px/1.55 var(--font-ui);
+  font: 500 15px/1.72 var(--font-ui);
   white-space: pre-line;
   color: var(--aurora-fg);
 }
 .ai-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.ai-card-feature {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  padding: 20px 22px;
+}
+.ai-card-feature h3 {
+  margin-bottom: 6px;
+  font-size: 16px;
+  color: var(--aurora-orange-2);
+}
+.ai-intro {
+  margin: 4px 0 14px;
+  color: var(--aurora-fg-muted);
+}
 
 .kv { display: grid; grid-template-columns: 80px 1fr; gap: 6px 12px; font-size: 13px; }
 .kv dt { color: var(--aurora-fg-muted); font-weight: 600; }
@@ -221,7 +244,10 @@
 @media (max-width: 1100px) {
   .app { grid-template-columns: minmax(0, 1fr); }
   .map-card { grid-column: 1; grid-row: 2; min-height: 420px; }
-  .side { grid-column: 1; grid-row: 3; }
+  .split-card-feature { grid-column: 1; grid-row: 3; }
+  .side { grid-column: 1; grid-row: 4; }
+  .ai-card-feature { grid-column: 1; grid-row: 5; }
+  .split-card-feature .split-stage { min-height: 0; max-width: none; }
 }
 
 /* ----- help modal ----- */

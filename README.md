@@ -17,7 +17,7 @@ Compare any place on Earth across two dates with real Sentinel-2 imagery, a spli
 | Elevation (DEM) | [OpenTopoData](https://api.opentopodata.org) | Free, no key |
 | Reverse geocoding | [Nominatim (OSM)](https://nominatim.openstreetmap.org) | Free, no key |
 | Hand tracking | MediaPipe Hands (CDN) | Free |
-| AI vision *(optional)* | OpenRouter (`google/gemma-4-31b-it:free`, plus fallback chain) | Optional |
+| AI vision *(optional)* | OpenRouter (`nvidia/nemotron-nano-12b-v2-vl:free`, plus free fallback chain) | Optional |
 | Spectral imagery *(optional)* | Sentinel Hub WMS | Optional |
 
 If `OPENROUTER_API_KEY` is unset the app still works — it shows a clean fallback explanation.
@@ -29,7 +29,7 @@ Copy [`.env.local.example`](.env.local.example) → `.env.local` and fill what y
 ```bash
 MAPBOX_PUBLIC_TOKEN=pk.xxx          # required (browser-safe public token)
 OPENROUTER_API_KEY=                 # optional, enables AI analysis
-OPENROUTER_MODEL=google/gemma-4-31b-it:free
+OPENROUTER_MODEL=nvidia/nemotron-nano-12b-v2-vl:free
 SENTINEL_HUB_INSTANCE_ID=           # optional, enables spectral layers
 ```
 
@@ -55,9 +55,9 @@ npm run deploy         # vercel --prod
 | Gesture | In **Mapa** mode | In **Comparador** mode |
 | --- | --- | --- |
 | ☝️ Index pointing | Move virtual cursor | Move virtual cursor |
-| ✊ Closed fist | Drag (pan) the map | — |
-| ✌️ V (index + middle) | Zoom in | Move split right |
-| 🖐️ Open hand (4 fingers) | Zoom out | Move split left |
+| 🤏 Pinch (thumb + index) | Drag (pan) the map | — |
+| ✌️ V up | Zoom in | Move split right |
+| ✌️ V down | Zoom out | Move split left |
 | 👍 Thumbs up — hold 5 s | Lock area + run comparison | Lock area + run comparison |
 
 Mode **Manual** disables all gesture actions — mouse and keyboard work as usual.

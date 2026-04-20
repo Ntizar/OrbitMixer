@@ -13,6 +13,7 @@
 const STAC_URL = 'https://earth-search.aws.element84.com/v1/search';
 const TITILER = 'https://titiler.xyz/cog/bbox';
 const OPENTOPO = 'https://api.opentopodata.org/v1';
+const AI_CACHE = new Map();
 
 // --------- helpers ---------
 
@@ -99,8 +100,8 @@ function titilerUrl(cogHref, bbox) {
   const u = new URL(`${TITILER}/${w},${s},${e},${n}.png`);
   u.searchParams.set('url', cogHref);
   u.searchParams.set('coord_crs', 'epsg:4326');
-  u.searchParams.set('width', '720');
-  u.searchParams.set('height', '720');
+  u.searchParams.set('width', '960');
+  u.searchParams.set('height', '960');
   return u.toString();
 }
 
@@ -255,6 +256,12 @@ async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode, 
   const key = (process.env.OPENROUTER_API_KEY || '').trim();
   if (!key) return { text: null, used: false, model: null };
 
+  const cacheKey = [urlBefore, urlAfter, date_from, date_to, mode, place || ''].join('|');
+  const cached = AI_CACHE.get(cacheKey);
+  if (cached) {
+    return { text: cached.text, used: true, model: `${cached.model} (cache)` };
+  }
+
   const userModel = (process.env.OPENROUTER_MODEL || '').trim();
   const chain = [
     userModel,
@@ -263,8 +270,7 @@ async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode, 
     'google/gemma-4-26b-a4b-it:free',
     'google/gemma-3-27b-it:free',
     'google/gemma-3-12b-it:free',
-    'google/gemma-3-4b-it:free',
-    'openai/gpt-4o-mini'
+    'google/gemma-3-4b-it:free'
   ].filter(Boolean).filter((m, i, a) => a.indexOf(m) === i); // dedupe
 
   const prompt = PROMPT_TEMPLATE({ lat, lon, date_from, date_to, mode, place });
@@ -300,6 +306,11 @@ async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode, 
       const j = await r.json();
       const text = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
       if (text && text.trim()) {
+        AI_CACHE.set(cacheKey, { text: text.trim(), model, ts: Date.now() });
+        if (AI_CACHE.size > 40) {
+          const firstKey = AI_CACHE.keys().next().value;
+          if (firstKey) AI_CACHE.delete(firstKey);
+        }
         return { text: text.trim(), used: true, model };
       }
       lastErr = new Error(`${model}: respuesta vacía`);

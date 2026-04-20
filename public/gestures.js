@@ -3,7 +3,7 @@
 // Emits CustomEvents on `document`:
 //   gesture:cursor   { x, y }            (normalized 0..1, mirrored)
 //   gesture:pan      { dx, dy }
-//   gesture:zoom     { dir: +1 }          (one step, throttled)
+//   gesture:zoom     { dir: +1 | -1 }     (one step, throttled)
 //   gesture:split    { dir: +1 | -1 }    (one step, throttled)
 //   gesture:thumb    { holdMs, ratio }
 //   gesture:lock     { x, y }            (fired when thumb held >= 5s + drift ok)
@@ -13,7 +13,7 @@
 (function () {
   const CFG = {
     detectMs: 80,
-    detectFistMs: 40,
+    detectPinchMs: 35,
     thumbWarmupMs: 300,
     thumbHoldMs: 5000,
     thumbMaxDrift: 0.18,
@@ -44,16 +44,32 @@
                    !isExtended(lm, 16) && !isExtended(lm, 20);
     return above && straight && folded;
   }
+
+  function pinchClosed(lm) {
+    const handScale = Math.max(0.001, dist(lm[5], lm[17]) || dist(lm[0], lm[9]));
+    const pinchDist = dist(lm[4], lm[8]);
+    return pinchDist < handScale * 0.42;
+  }
+
+  function vDirection(lm) {
+    const tipAvgY = (lm[8].y + lm[12].y) / 2;
+    const pipAvgY = (lm[6].y + lm[10].y) / 2;
+    const delta = tipAvgY - pipAvgY;
+    if (delta < -0.045) return 'v-up';
+    if (delta > 0.045) return 'v-down';
+    return 'v-up';
+  }
+
   function classify(lm) {
     const i = isExtended(lm, 8);
     const m = isExtended(lm, 12);
     const r = isExtended(lm, 16);
     const p = isExtended(lm, 20);
     if (thumbUp(lm)) return 'thumb';
-    if (i && m && r && p) return 'open';     // open hand
-    if (i && m && !r && !p) return 'v';      // V sign
+    if (pinchClosed(lm)) return 'pinch';
+    if (i && m && !r && !p) return vDirection(lm);
     if (i && !m && !r && !p) return 'point'; // index pointing
-    if (!i && !m && !r && !p) return 'fist';
+    if (i && m && r && p) return 'open';
     return 'idle';
   }
 
@@ -75,7 +91,8 @@
       this.lastSplitAt = 0;
 
       // pan
-      this.lastFistPos = null;
+      this.lastPinchPos = null;
+      this.lastStableCursor = null;
 
       // thumb
       this.thumbStart = 0;
@@ -172,7 +189,7 @@
       if (!lms) {
         this.lastGesture = 'idle';
         this.gestureSince = 0;
-        this.lastFistPos = null;
+        this.lastPinchPos = null;
         this._maybeResetThumb();
         return;
       }
@@ -180,19 +197,29 @@
       const g = classify(lms);
       const now = performance.now();
 
+      let pointer = lms[8] || lms[0];
+      if (g === 'pinch') {
+        pointer = {
+          x: (lms[4].x + lms[8].x) / 2,
+          y: (lms[4].y + lms[8].y) / 2
+        };
+      }
+
       // Mirror x because video is mirrored.
-      const tip = lms[8] || lms[0];
-      const cursorX = 1 - tip.x;
-      const cursorY = tip.y;
+      const cursorX = 1 - pointer.x;
+      const cursorY = pointer.y;
+      if (g !== 'thumb') {
+        this.lastStableCursor = { x: cursorX, y: cursorY };
+      }
       document.dispatchEvent(new CustomEvent('gesture:cursor',
         { detail: { x: cursorX, y: cursorY } }));
 
-      const requiredHold = (g === 'fist') ? CFG.detectFistMs : CFG.detectMs;
+      const requiredHold = (g === 'pinch') ? CFG.detectPinchMs : CFG.detectMs;
       if (g !== this.lastGesture) {
         this.lastGesture = g;
         this.gestureSince = now;
         if (g !== 'thumb') this._maybeResetThumb();
-        if (g !== 'fist') this.lastFistPos = null;
+        if (g !== 'pinch') this.lastPinchPos = null;
       }
       const heldFor = now - this.gestureSince;
       if (heldFor < requiredHold && g !== 'thumb') {
@@ -206,32 +233,32 @@
       const appState = window.OrbitViewerState || window.OrbitMixerState;
       const handMode = appState ? appState.handControlMode : 'map';
 
-      if (g === 'fist') {
+      if (g === 'pinch') {
         if (handMode === 'map') {
-          if (this.lastFistPos) {
-            const dx = (cursorX - this.lastFistPos.x);
-            const dy = (cursorY - this.lastFistPos.y);
+          if (this.lastPinchPos) {
+            const dx = (cursorX - this.lastPinchPos.x);
+            const dy = (cursorY - this.lastPinchPos.y);
             document.dispatchEvent(new CustomEvent('gesture:pan', { detail: { dx, dy } }));
           }
-          this.lastFistPos = { x: cursorX, y: cursorY };
+          this.lastPinchPos = { x: cursorX, y: cursorY };
         }
       } else {
-        this.lastFistPos = null;
+        this.lastPinchPos = null;
       }
 
-      if (g === 'v' || g === 'open') {
-        const isV = g === 'v';
+      if (g === 'v-up' || g === 'v-down') {
+        const dir = g === 'v-up' ? +1 : -1;
         if (handMode === 'map') {
-          if (isV && now - this.lastZoomAt > CFG.zoomThrottleMs) {
+          if (now - this.lastZoomAt > CFG.zoomThrottleMs) {
             this.lastZoomAt = now;
             document.dispatchEvent(new CustomEvent('gesture:zoom',
-              { detail: { dir: +1 } }));
+              { detail: { dir } }));
           }
         } else if (handMode === 'compare') {
           if (now - this.lastSplitAt > CFG.splitThrottleMs) {
             this.lastSplitAt = now;
             document.dispatchEvent(new CustomEvent('gesture:split',
-              { detail: { dir: isV ? +1 : -1 } }));
+              { detail: { dir } }));
           }
         }
       }
@@ -239,7 +266,7 @@
       if (g === 'thumb') {
         if (!this.thumbStart) {
           this.thumbStart = now;
-          this.thumbAnchor = { x: cursorX, y: cursorY };
+          this.thumbAnchor = this.lastStableCursor || { x: cursorX, y: cursorY };
         }
         const elapsed = now - this.thumbStart;
         if (elapsed < CFG.thumbWarmupMs) {

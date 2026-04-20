@@ -70,9 +70,9 @@
         <thead><tr><th>Gesto</th><th>En modo Mapa</th><th>En modo Comparador</th></tr></thead>
         <tbody>
           <tr><td>☝️ <b>Índice</b> apuntando</td><td>Mueve el cursor virtual</td><td>Mueve el cursor virtual</td></tr>
-          <tr><td>✊ <b>Puño</b> cerrado</td><td>Arrastra el mapa (paneo)</td><td>—</td></tr>
-          <tr><td>✌️ <b>V</b> (índice + corazón)</td><td>Zoom <b>in</b></td><td>Mueve divisor a la <b>derecha</b></td></tr>
-          <tr><td>🖐️ <b>Mano abierta</b> (4 dedos)</td><td>Sin acción en el mapa</td><td>Mueve divisor a la <b>izquierda</b></td></tr>
+          <tr><td>🤏 <b>Pinza</b> (pulgar + índice)</td><td>Arrastra el mapa (paneo)</td><td>—</td></tr>
+          <tr><td>✌️ <b>V hacia arriba</b></td><td>Zoom <b>in</b></td><td>Mueve divisor a la <b>derecha</b></td></tr>
+          <tr><td>✌️ <b>V hacia abajo</b></td><td>Zoom <b>out</b></td><td>Mueve divisor a la <b>izquierda</b></td></tr>
           <tr><td>👍 <b>Pulgar arriba</b> (5 s)</td><td colspan="2"><b>Bloquea el punto y dispara la comparación</b></td></tr>
         </tbody>
       </table>
@@ -147,6 +147,22 @@
       </div>
     </section>
 
+    <!-- ============== SPLIT VIEW ============== -->
+    <section class="card-glass glass-specular split-card split-card-feature" aria-label="Comparación antes / ahora">
+      <h3 data-i18n="split-title">Antes ↔ Ahora</h3>
+      <div class="split-stage" id="split-stage">
+        <img id="img-before" class="img-before" alt="" />
+        <img id="img-after"  class="img-after"  alt="" />
+        <div class="split-label left"  data-i18n="split-before">ANTES</div>
+        <div class="split-label right" data-i18n="split-after">AHORA</div>
+        <div class="divider" id="split-divider" role="separator" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"></div>
+      </div>
+      <div class="split-controls">
+        <input type="range" id="split-range" min="0" max="100" value="50" aria-label="Posición del divisor">
+        <span class="small mono" id="split-value">50%</span>
+      </div>
+    </section>
+
     <!-- ============== SIDE COLUMN ============== -->
     <aside class="side">
 
@@ -185,31 +201,6 @@
         </div>
       </section>
 
-      <!-- SPLIT VIEW -->
-      <section class="card-glass glass-specular split-card" aria-label="Comparación antes / ahora">
-        <h3 data-i18n="split-title">Antes ↔ Ahora</h3>
-        <div class="split-stage" id="split-stage">
-          <img id="img-before" class="img-before" alt="" />
-          <img id="img-after"  class="img-after"  alt="" />
-          <div class="split-label left"  data-i18n="split-before">ANTES</div>
-          <div class="split-label right" data-i18n="split-after">AHORA</div>
-          <div class="divider" id="split-divider" role="separator" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"></div>
-        </div>
-        <div class="split-controls">
-          <input type="range" id="split-range" min="0" max="100" value="50" aria-label="Posición del divisor">
-          <span class="small mono" id="split-value">50%</span>
-        </div>
-      </section>
-
-      <!-- AI ANALYSIS -->
-      <section class="card-glass glass-specular" aria-label="Análisis con IA">
-        <h3 data-i18n="ai-title">Análisis IA</h3>
-        <div class="ai-text" id="ai-text" data-i18n="ai-empty">
-          Selecciona un punto en el mapa o sostén el pulgar arriba 5 s para comparar.
-        </div>
-        <div class="ai-meta" id="ai-meta"></div>
-      </section>
-
       <!-- TERRITORY -->
       <section class="card-glass glass-specular" aria-label="Territorio">
         <h3 data-i18n="ter-title">Territorio</h3>
@@ -222,6 +213,16 @@
       </section>
 
     </aside>
+
+    <!-- AI ANALYSIS -->
+    <section class="card-glass glass-specular ai-card-feature" aria-label="Análisis con IA">
+      <h3 data-i18n="ai-title">Análisis IA</h3>
+      <div class="ai-intro small">Informe de cambio temporal generado a partir de las dos imágenes seleccionadas.</div>
+      <div class="ai-text" id="ai-text" data-i18n="ai-empty">
+        Selecciona un punto en el mapa o sostén el pulgar arriba 5 s para comparar.
+      </div>
+      <div class="ai-meta" id="ai-meta"></div>
+    </section>
   </main>
 
   <!-- ============== SCRIPTS (CDN) ============== -->
