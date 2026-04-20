@@ -212,43 +212,57 @@ Reglas:
 };
 
 async function runAi({ urlBefore, urlAfter, lat, lon, date_from, date_to, mode }) {
-  const key = process.env.OPENROUTER_API_KEY;
-  if (!key) return { text: null, used: false };
+  const key = (process.env.OPENROUTER_API_KEY || '').trim();
+  if (!key) return { text: null, used: false, model: null };
 
-  const model = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-exp:free';
+  const userModel = (process.env.OPENROUTER_MODEL || '').trim();
+  const chain = [
+    userModel,
+    'meta-llama/llama-3.2-90b-vision-instruct:free',
+    'meta-llama/llama-3.2-11b-vision-instruct:free',
+    'qwen/qwen-2.5-vl-7b-instruct:free',
+    'google/gemini-flash-1.5'
+  ].filter(Boolean).filter((m, i, a) => a.indexOf(m) === i); // dedupe
+
   const prompt = PROMPT_TEMPLATE({ lat, lon, date_from, date_to, mode });
+  const messages = [{
+    role: 'user',
+    content: [
+      { type: 'text', text: prompt },
+      { type: 'image_url', image_url: { url: urlBefore } },
+      { type: 'image_url', image_url: { url: urlAfter } }
+    ]
+  }];
 
-  const body = {
-    model,
-    max_tokens: 700,
-    temperature: 0.35,
-    messages: [{
-      role: 'user',
-      content: [
-        { type: 'text', text: prompt },
-        { type: 'image_url', image_url: { url: urlBefore } },
-        { type: 'image_url', image_url: { url: urlAfter } }
-      ]
-    }]
-  };
-
-  const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${key}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://orbitmixer.vercel.app',
-      'X-Title': 'OrbitViewer'
-    },
-    body: JSON.stringify(body)
-  });
-  if (!r.ok) {
-    const t = await r.text().catch(() => '');
-    throw new Error(`OpenRouter ${r.status}: ${t.slice(0, 200)}`);
+  let lastErr = null;
+  for (const model of chain) {
+    try {
+      const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://orbitmixer.vercel.app',
+          'X-Title': 'OrbitViewer'
+        },
+        body: JSON.stringify({ model, max_tokens: 700, temperature: 0.35, messages })
+      });
+      if (!r.ok) {
+        const t = await r.text().catch(() => '');
+        lastErr = new Error(`${model}: ${r.status} ${t.slice(0, 160)}`);
+        continue;
+      }
+      const j = await r.json();
+      const text = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+      if (text && text.trim()) {
+        return { text: text.trim(), used: true, model };
+      }
+      lastErr = new Error(`${model}: respuesta vacía`);
+    } catch (e) {
+      lastErr = e;
+    }
   }
-  const j = await r.json();
-  const text = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
-  return { text: (text || '').trim(), used: true };
+  throw lastErr || new Error('AI sin modelo disponible');
 }
 
 function fallbackAnalysis({ mode, date_from, date_to }) {
@@ -331,6 +345,7 @@ module.exports = async (req, res) => {
       if (ai.used && ai.text) {
         aiText = ai.text;
         isMock = false;
+        renderNote += ` IA: ${ai.model}.`;
       }
     } catch (e) {
       renderNote += ` IA no disponible (${String(e.message || e).slice(0, 80)}).`;
